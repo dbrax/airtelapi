@@ -6,7 +6,6 @@ class Airtel
 {
 
 
-protected $token;
 protected $client_id;
 protected $client_secret;
 protected $baseurl;
@@ -16,9 +15,7 @@ public function __construct($client_id = null, $client_secret = null, $baseurl =
       $this->client_id = $client_id;
       $this->client_secret = $client_secret;
       $this->baseurl = $baseurl;
-      if ($client_id && $client_secret && $baseurl) {
-         $this->token = $this->create_token();
-      }
+ 
    }
 
    public function create_token()
@@ -57,7 +54,7 @@ public function __construct($client_id = null, $client_secret = null, $baseurl =
          throw new \RuntimeException('Airtel token response does not contain access_token');
       }
 
-      $this->token=$responseData['access_token'];
+      return $responseData['access_token'];
 
    }
   
@@ -65,6 +62,7 @@ public function __construct($client_id = null, $client_secret = null, $baseurl =
    public function collect($reference,$requestid,$msisdn,$amount,$subscriber_country='TZ',$subscriber_currency='TZS',$transaction_country='TZ',$transaction_currency='TZS')
    {
  
+   $token= $this->create_token();
 
       $payload = [
          'reference' => $reference,
@@ -91,7 +89,7 @@ public function __construct($client_id = null, $client_secret = null, $baseurl =
             'Accept: application/json',
             'X-Country' => 'TZ',
             'X-Currency' => 'TZS',
-            'Authorization' => 'Bearer ' . $this->token,  
+            'Authorization' => 'Bearer ' . $token,  
          ],
          CURLOPT_POSTFIELDS => json_encode($payload),
       ]);
@@ -107,7 +105,9 @@ public function __construct($client_id = null, $client_secret = null, $baseurl =
 
       curl_close($ch);
 
-      return json_decode($responseBody, true);
+   
+      $responseData = json_decode($responseBody, true);
 
+      return $responseData;
    }
 }
