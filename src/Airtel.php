@@ -57,7 +57,7 @@ public function __construct($client_id = null, $client_secret = null, $baseurl =
          throw new \RuntimeException('Airtel token response does not contain access_token');
       }
 
-      return $responseData['access_token'];
+      $this->token=$responseData['access_token'];
 
    }
   
@@ -107,7 +107,7 @@ public function __construct($client_id = null, $client_secret = null, $baseurl =
 
       curl_close($ch);
 
-      return $payload;
+      return json_decode($responseBody, true);
 
    }
 }
