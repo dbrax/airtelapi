@@ -62,8 +62,21 @@ public function __construct($client_id = null, $client_secret = null, $baseurl =
    }
   
    
-   public function collect($reference,$subscriber_country,$subscriber_currency,$msisdn,$amount,$transaction_country,$transaction_currency,$requestid)
+   public function collect($reference,$requestid,$msisdn,$amount,$subscriber_country='TZ',$subscriber_currency='TZS',$transaction_country='TZ',$transaction_currency='TZS')
    {
+      if (!is_numeric($amount) || $amount <= 0) {
+         throw new \InvalidArgumentException('Amount must be greater than zero');
+      }
+      if ($amount < 100) {
+         throw new \InvalidArgumentException('Amount must be at least 100');
+      }
+      if ($amount > 7000000) {
+         throw new \InvalidArgumentException('Amount must not exceed 7,000,000');
+      }
+      if (!preg_match('/^\d{10}$/', $msisdn)) {
+         throw new \InvalidArgumentException('Invalid MSISDN: must be a 10-digit number');
+      }
+
       $payload = [
          'reference' => $reference,
          'subscriber' => [
@@ -103,15 +116,9 @@ public function __construct($client_id = null, $client_secret = null, $baseurl =
          throw new \RuntimeException('Airtel collect request failed: '.$error);
       }
 
-      $httpStatus = curl_getinfo($ch, CURLINFO_HTTP_CODE);
       curl_close($ch);
 
-      return [
-         'status' => $httpStatus,
-         'body' => json_decode($responseBody, true),
-         'raw' => $responseBody,
-         'request' => $payload,
-      ];
+      return $payload;
 
    }
 }

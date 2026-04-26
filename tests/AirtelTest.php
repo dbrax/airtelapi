@@ -13,14 +13,13 @@ class AirtelTest extends TestCase
 {
     private Airtel $airtel;
 
-    // Common test-fixture values.
     private const BASE_URL             = 'https://openapiuat.airtel.co.tz/merchant/v1/payments/';
     private const CLIENT_ID            = 'test_client_id';
     private const CLIENT_SECRET        = 'test_client_secret';
     private const REFERENCE            = 'Testing transaction';
     private const SUBSCRIBER_COUNTRY   = 'TZ';
     private const SUBSCRIBER_CURRENCY  = 'TZS';
-    private const MSISDN               = '12****89';
+    private const MSISDN               = '0689259497';
     private const AMOUNT               = 1000;
     private const TRANSACTION_COUNTRY  = 'TZ';
     private const TRANSACTION_CURRENCY = 'TZS';
@@ -29,63 +28,48 @@ class AirtelTest extends TestCase
     protected function setUp(): void
     {
         CurlMockState::reset();
-        // Prime the mock so the constructor's create_token() call succeeds.
         CurlMockState::$execReturn = json_encode(['access_token' => 'mock_token', 'expires_in' => '180', 'token_type' => 'bearer']);
         $this->airtel = new Airtel(self::CLIENT_ID, self::CLIENT_SECRET, self::BASE_URL);
-        // Reset captured state so collect() tests start with a clean slate.
         CurlMockState::reset();
     }
-
-    // ------------------------------------------------------------------
-    // Helper
-    // ------------------------------------------------------------------
 
     private function callCollect(): array
     {
         return $this->airtel->collect(
             self::REFERENCE,
-            self::SUBSCRIBER_COUNTRY,
-            self::SUBSCRIBER_CURRENCY,
+            self::REQUEST_ID,
             self::MSISDN,
             self::AMOUNT,
+            self::SUBSCRIBER_COUNTRY,
+            self::SUBSCRIBER_CURRENCY,
             self::TRANSACTION_COUNTRY,
             self::TRANSACTION_CURRENCY,
-            self::REQUEST_ID,
         );
     }
 
-    // ------------------------------------------------------------------
-    // Payload structure tests
-    // ------------------------------------------------------------------
+    // Payload structure
 
     public function test_collect_builds_correct_payload_structure(): void
     {
         CurlMockState::$execReturn = json_encode(['status' => 'SUCCESS']);
-
         $result = $this->callCollect();
-
-        $payload = $result['request'];
-        $this->assertArrayHasKey('reference',   $payload);
-        $this->assertArrayHasKey('subscriber',  $payload);
-        $this->assertArrayHasKey('transaction', $payload);
+        $this->assertArrayHasKey('reference',   $result);
+        $this->assertArrayHasKey('subscriber',  $result);
+        $this->assertArrayHasKey('transaction', $result);
     }
 
     public function test_collect_sets_correct_reference(): void
     {
         CurlMockState::$execReturn = json_encode(['status' => 'SUCCESS']);
-
         $result = $this->callCollect();
-
-        $this->assertSame(self::REFERENCE, $result['request']['reference']);
+        $this->assertSame(self::REFERENCE, $result['reference']);
     }
 
     public function test_collect_sets_correct_subscriber_fields(): void
     {
         CurlMockState::$execReturn = json_encode(['status' => 'SUCCESS']);
-
         $result     = $this->callCollect();
-        $subscriber = $result['request']['subscriber'];
-
+        $subscriber = $result['subscriber'];
         $this->assertSame(self::SUBSCRIBER_COUNTRY,  $subscriber['country']);
         $this->assertSame(self::SUBSCRIBER_CURRENCY, $subscriber['currency']);
         $this->assertSame(self::MSISDN,              $subscriber['msisdn']);
@@ -94,35 +78,27 @@ class AirtelTest extends TestCase
     public function test_collect_sets_correct_transaction_fields(): void
     {
         CurlMockState::$execReturn = json_encode(['status' => 'SUCCESS']);
-
         $result      = $this->callCollect();
-        $transaction = $result['request']['transaction'];
-
+        $transaction = $result['transaction'];
         $this->assertSame(self::AMOUNT,               $transaction['amount']);
         $this->assertSame(self::TRANSACTION_COUNTRY,  $transaction['country']);
         $this->assertSame(self::TRANSACTION_CURRENCY, $transaction['currency']);
         $this->assertSame(self::REQUEST_ID,           $transaction['id']);
     }
 
-    // ------------------------------------------------------------------
     // HTTP request tests
-    // ------------------------------------------------------------------
 
     public function test_collect_sends_to_correct_url(): void
     {
         CurlMockState::$execReturn = json_encode(['status' => 'SUCCESS']);
-
         $this->callCollect();
-
         $this->assertSame(self::BASE_URL, CurlMockState::$capturedUrl);
     }
 
     public function test_collect_sends_json_content_type_header(): void
     {
         CurlMockState::$execReturn = json_encode(['status' => 'SUCCESS']);
-
         $this->callCollect();
-
         $headers = CurlMockState::$capturedOptions[CURLOPT_HTTPHEADER];
         $this->assertContains('Content-Type: application/json', $headers);
     }
@@ -130,9 +106,7 @@ class AirtelTest extends TestCase
     public function test_collect_sends_accept_json_header(): void
     {
         CurlMockState::$execReturn = json_encode(['status' => 'SUCCESS']);
-
         $this->callCollect();
-
         $headers = CurlMockState::$capturedOptions[CURLOPT_HTTPHEADER];
         $this->assertContains('Accept: application/json', $headers);
     }
@@ -140,71 +114,91 @@ class AirtelTest extends TestCase
     public function test_collect_sends_payload_as_json_encoded_post_fields(): void
     {
         CurlMockState::$execReturn = json_encode(['status' => 'SUCCESS']);
-
-        $result = $this->callCollect();
-
+        $result   = $this->callCollect();
         $sentJson = CurlMockState::$capturedOptions[CURLOPT_POSTFIELDS];
         $this->assertJson($sentJson);
-        $this->assertSame($result['request'], json_decode($sentJson, true));
+        $this->assertSame($result, json_decode($sentJson, true));
     }
 
-    // ------------------------------------------------------------------
-    // Response handling tests
-    // ------------------------------------------------------------------
+    // Response handling
 
-    public function test_collect_returns_http_status_code(): void
+    public function test_collect_returns_payload_structure(): void
     {
         CurlMockState::$execReturn = json_encode(['status' => 'SUCCESS']);
-        CurlMockState::$httpStatus = 200;
-
         $result = $this->callCollect();
-
-        $this->assertSame(200, $result['status']);
+        $this->assertArrayHasKey('reference',   $result);
+        $this->assertArrayHasKey('subscriber',  $result);
+        $this->assertArrayHasKey('transaction', $result);
     }
 
-    public function test_collect_returns_decoded_json_body(): void
-    {
-        $responseData              = ['status' => 'SUCCESS', 'data' => ['transaction_id' => 'abc123']];
-        CurlMockState::$execReturn = json_encode($responseData);
-
-        $result = $this->callCollect();
-
-        $this->assertSame($responseData, $result['body']);
-    }
-
-    public function test_collect_returns_raw_response_string(): void
-    {
-        $raw                       = json_encode(['status' => 'SUCCESS']);
-        CurlMockState::$execReturn = $raw;
-
-        $result = $this->callCollect();
-
-        $this->assertSame($raw, $result['raw']);
-    }
-
-    public function test_collect_returns_non_200_status_codes(): void
-    {
-        CurlMockState::$execReturn = json_encode(['message' => 'Unauthorized']);
-        CurlMockState::$httpStatus = 401;
-
-        $result = $this->callCollect();
-
-        $this->assertSame(401, $result['status']);
-        $this->assertSame('Unauthorized', $result['body']['message']);
-    }
-
-    // ------------------------------------------------------------------
-    // cURL failure test
-    // ------------------------------------------------------------------
+    // cURL failure
 
     public function test_collect_throws_runtime_exception_on_curl_failure(): void
     {
         CurlMockState::$execReturn = false;
         CurlMockState::$error      = 'Could not resolve host';
-
         $this->expectException(\RuntimeException::class);
         $this->expectExceptionMessage('Airtel collect request failed: Could not resolve host');
-
         $this->callCollect();
+    }
+
+    // Amount validation
+
+    public function test_collect_throws_exception_for_zero_amount(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Amount must be greater than zero');
+        $this->airtel->collect(uniqid('ref_', true), uniqid('req_', true), '0689259497', 0);
+    }
+
+    public function test_collect_throws_exception_for_negative_amount(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Amount must be greater than zero');
+        $this->airtel->collect(uniqid('ref_', true), uniqid('req_', true), '0689259497', -500);
+    }
+
+    public function test_collect_throws_exception_for_amount_below_minimum(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Amount must be at least 100');
+        $this->airtel->collect(uniqid('ref_', true), uniqid('req_', true), '0689259497', 99);
+    }
+
+    public function test_collect_throws_exception_for_amount_above_maximum(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Amount must not exceed 7,000,000');
+        $this->airtel->collect(uniqid('ref_', true), uniqid('req_', true), '0689259497', 7000001);
+    }
+
+    // MSISDN validation
+
+    public function test_collect_accepts_valid_msisdn_0689259497(): void
+    {
+        CurlMockState::$execReturn = json_encode(['status' => 'SUCCESS']);
+        $result = $this->airtel->collect(uniqid('ref_', true), uniqid('req_', true), '0689259497', 500);
+        $this->assertSame('0689259497', $result['subscriber']['msisdn']);
+    }
+
+    public function test_collect_accepts_subscriber_msisdn_0679079774(): void
+    {
+        CurlMockState::$execReturn = json_encode(['status' => 'SUCCESS']);
+        $result = $this->airtel->collect(uniqid('ref_', true), uniqid('req_', true), '0679079774', 500);
+        $this->assertSame('0679079774', $result['subscriber']['msisdn']);
+    }
+
+    // Happy path
+
+    public function test_collect_succeeds_with_valid_amount_and_msisdn(): void
+    {
+        CurlMockState::$execReturn = json_encode(['status' => 'SUCCESS']);
+        $reference = uniqid('ref_', true);
+        $requestId = uniqid('req_', true);
+        $result = $this->airtel->collect($reference, $requestId, '0689259497', 1000);
+        $this->assertSame($reference,   $result['reference']);
+        $this->assertSame($requestId,   $result['transaction']['id']);
+        $this->assertSame(1000,         $result['transaction']['amount']);
+        $this->assertSame('0689259497', $result['subscriber']['msisdn']);
     }
 }

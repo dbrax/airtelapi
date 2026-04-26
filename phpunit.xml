@@ -14,4 +14,8 @@
             <directory suffix=".php">src</directory>
         </include>
     </coverage>
+    <logging>
+        <testdoxHtml outputFile="reports/test-report.html"/>
+        <junit outputFile="reports/test-report.xml"/>
+    </logging>
 </phpunit>
