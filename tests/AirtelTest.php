@@ -15,6 +15,8 @@ class AirtelTest extends TestCase
 
     // Common test-fixture values.
     private const BASE_URL             = 'https://openapiuat.airtel.co.tz/merchant/v1/payments/';
+    private const CLIENT_ID            = 'test_client_id';
+    private const CLIENT_SECRET        = 'test_client_secret';
     private const REFERENCE            = 'Testing transaction';
     private const SUBSCRIBER_COUNTRY   = 'TZ';
     private const SUBSCRIBER_CURRENCY  = 'TZS';
@@ -27,7 +29,11 @@ class AirtelTest extends TestCase
     protected function setUp(): void
     {
         CurlMockState::reset();
-        $this->airtel = new Airtel();
+        // Prime the mock so the constructor's create_token() call succeeds.
+        CurlMockState::$execReturn = json_encode(['access_token' => 'mock_token', 'expires_in' => '180', 'token_type' => 'bearer']);
+        $this->airtel = new Airtel(self::CLIENT_ID, self::CLIENT_SECRET, self::BASE_URL);
+        // Reset captured state so collect() tests start with a clean slate.
+        CurlMockState::reset();
     }
 
     // ------------------------------------------------------------------
@@ -37,7 +43,6 @@ class AirtelTest extends TestCase
     private function callCollect(): array
     {
         return $this->airtel->collect(
-            self::BASE_URL,
             self::REFERENCE,
             self::SUBSCRIBER_COUNTRY,
             self::SUBSCRIBER_CURRENCY,
