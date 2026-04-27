@@ -2,6 +2,8 @@
 
 namespace Epmnzava\Airtel;
 
+use Illuminate\Support\Facades\Log;
+
 class Airtel
 {
 
@@ -26,21 +28,30 @@ public function __construct($client_id = null, $client_secret = null, $baseurl =
          'grant_type' => 'client_credentials',
       ];
 
-      $ch = curl_init($this->baseurl.'/auth/oauth2/token');
+      $ch = curl_init();
 
-      curl_setopt_array($ch, [
-         CURLOPT_RETURNTRANSFER => true,
-         CURLOPT_POST => true,
-         CURLOPT_HTTPHEADER => [
-            'Content-Type: application/json',
-            'Accept: application/json',
-         ],
-         CURLOPT_POSTFIELDS => json_encode($payload),
-      ]);
+   $curl = curl_init();
 
-      $responseBody = curl_exec($ch);
+   $url=$this->baseurl.'/auth/oauth2/token';
 
-      if ($responseBody === false) {
+curl_setopt_array($curl, array(
+  CURLOPT_URL =>$url,
+  CURLOPT_RETURNTRANSFER => true,
+  CURLOPT_ENCODING => '',
+  CURLOPT_MAXREDIRS => 10,
+  CURLOPT_TIMEOUT => 0,
+  CURLOPT_FOLLOWLOCATION => true,
+  CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+  CURLOPT_CUSTOMREQUEST => 'POST',
+  CURLOPT_POSTFIELDS => json_encode($payload),
+  CURLOPT_HTTPHEADER => array(
+    'Content-Type: application/json',
+  ),
+));
+
+$response = curl_exec($curl);
+
+      if ($response === false) {
          $error = curl_error($ch);
          curl_close($ch);
 
@@ -49,10 +60,12 @@ public function __construct($client_id = null, $client_secret = null, $baseurl =
 
       curl_close($ch);
 
-      $responseData = json_decode($responseBody, true);
+      $responseData = json_decode($response, true);
       if (!is_array($responseData) || !isset($responseData['access_token'])) {
          throw new \RuntimeException('Airtel token response does not contain access_token');
       }
+
+
 
       return $responseData['access_token'];
 
@@ -63,6 +76,7 @@ public function __construct($client_id = null, $client_secret = null, $baseurl =
    {
  
    $token= $this->create_token();
+
 
       $payload = [
          'reference' => $reference,
@@ -79,7 +93,8 @@ public function __construct($client_id = null, $client_secret = null, $baseurl =
          ],
       ];
 
-      $ch = curl_init($this->baseurl);
+      $url=$this->baseurl."/merchant/v1/payments";
+      $ch = curl_init($url);
 
       curl_setopt_array($ch, [
          CURLOPT_RETURNTRANSFER => true,
